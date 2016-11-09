@@ -1,13 +1,20 @@
 package com.lljackie.mycountdown;
 
+import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
+import android.view.KeyEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class CountDownActivity extends AppCompatActivity {
 
@@ -24,7 +31,7 @@ public class CountDownActivity extends AppCompatActivity {
     Button bt_pause;
     Button bt_cancel;
 
-    private boolean flag = false;
+    private boolean flag = false;             //暂停标识
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,14 +52,14 @@ public class CountDownActivity extends AppCompatActivity {
         min = intent.getIntExtra("minute", 0);
         s = intent.getIntExtra("second", 0);
 
-        int sum1 = h * 60 * 60 + min * 60 + s;
+        int sum1 = h * 60 * 60 + min * 60 + s;          //将时分秒加为一个总数
 
         setFormattedText(tv_day, d);
         setFormattedText(tv_hour, h);
         setFormattedText(tv_min, min);
         setFormattedText(tv_sec, s);
 
-        final Thread thread = new MyThread(sum1, d);
+        final MyThread thread = new MyThread(sum1, d);
         thread.start();
 
         bt_pause.setOnClickListener(new View.OnClickListener() {
@@ -64,9 +71,6 @@ public class CountDownActivity extends AppCompatActivity {
                 }
                 else {
                     flag = false;
-                    synchronized(thread) {
-                        notifyAll();
-                    }
                     bt_pause.setText("pause");
                 }
             }
@@ -92,10 +96,10 @@ public class CountDownActivity extends AppCompatActivity {
         }
     };
 
-    public class MyThread extends Thread {
+    public class MyThread extends Thread {              //定义内部类，由于用匿名内部类传递数据比较麻烦，所以改用内部类
         private int num1, num2;
 
-        MyThread(int num1, int num2) {
+        MyThread(int num1, int num2) {                  //num1为时分秒换算的总秒数，num2为天数
             this.num1 = num1;
             this.num2 = num2;
         }
@@ -105,11 +109,10 @@ public class CountDownActivity extends AppCompatActivity {
             while (num1 > -1 || num2 > 0) {
 
                 try {
-                    synchronized(this) {
-                        while (flag) {
-                            wait();
-                        }
+                    while (flag) {                      //判断是否暂停
+                        sleep(1000);
                     }
+
                     Message msg = new Message();
                     msg.arg1 = num1;
                     msg.arg2 = num2;
@@ -131,7 +134,33 @@ public class CountDownActivity extends AppCompatActivity {
         }
     }
 
-    public void setFormattedText(TextView bt, int num) {
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {        //点击返回键不会退出程序，程序后台运行
+        PackageManager pm = getPackageManager();
+        ResolveInfo homeInfo =
+                pm.resolveActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0);
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            ActivityInfo ai = homeInfo.activityInfo;
+            Intent startIntent = new Intent(Intent.ACTION_MAIN);
+            startIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+            startIntent.setComponent(new ComponentName(ai.packageName, ai.name));
+            startActivitySafely(startIntent);
+            return true;
+        } else
+            return super.onKeyDown(keyCode, event);
+    }
+
+    private void startActivitySafely(Intent intent) {
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            startActivity(intent);
+        } catch (ActivityNotFoundException | SecurityException e) {
+            Toast.makeText(this, "null",
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public void setFormattedText(TextView bt, int num) {           //设置格式化显示数字
         if (num >= 0 && num < 10)
             bt.setText("0" + num);
         else

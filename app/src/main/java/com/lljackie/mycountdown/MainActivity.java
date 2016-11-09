@@ -1,10 +1,14 @@
 package com.lljackie.mycountdown;
 
+import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.TimePicker;
+
+import java.util.Calendar;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
@@ -14,6 +18,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     Button bt_4;
     Button bt_5;
     Button bt_cus;
+
+    private Calendar c = Calendar.getInstance();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,7 +59,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.bt_5:
                 sendtosecond(0, 1, 0, 0);
                 break;
-            case R.id.bt_cus:
+            case R.id.bt_cus: {
+                c.setTimeInMillis(System.currentTimeMillis());
+                new TimePickerDialog(MainActivity.this, new TimePickerDialog.OnTimeSetListener() {
+
+                            @Override
+                            public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
+                                c.setTimeInMillis(System.currentTimeMillis());
+                                c.set(Calendar.HOUR_OF_DAY, hourOfDay);
+                                c.set(Calendar.MINUTE, minute);
+                                c.set(Calendar.SECOND, 0); // 设为 0
+                                c.set(Calendar.MILLISECOND, 0); // 设为 0
+                            }
+                        }, 0, 0, true).show();
+            }
             default:
         }
 
