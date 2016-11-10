@@ -6,6 +6,9 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.media.MediaPlayer;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -15,6 +18,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import java.io.IOException;
 
 public class CountDownActivity extends AppCompatActivity {
 
@@ -30,6 +35,10 @@ public class CountDownActivity extends AppCompatActivity {
 
     Button bt_pause;
     Button bt_cancel;
+    Button bt_music;
+
+    Uri ringUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+    MediaPlayer mp;
 
     private boolean flag = false;             //暂停标识
 
@@ -45,6 +54,7 @@ public class CountDownActivity extends AppCompatActivity {
 
         bt_pause = (Button) findViewById(R.id.bt_pause);
         bt_cancel = (Button) findViewById(R.id.bt_cancel);
+        bt_music = (Button) findViewById(R.id.bt_music);
 
         Intent intent = getIntent();
         d = intent.getIntExtra("day", 0);
@@ -68,8 +78,7 @@ public class CountDownActivity extends AppCompatActivity {
                 if (!flag) {
                     flag = true;
                     bt_pause.setText("continue");
-                }
-                else {
+                } else {
                     flag = false;
                     bt_pause.setText("pause");
                 }
@@ -79,11 +88,51 @@ public class CountDownActivity extends AppCompatActivity {
         bt_cancel.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                if (mp != null)
+                    if (mp.isPlaying()) {
+                        mp.stop();
+                        mp.release();
+                    }
                 Intent intent = new Intent(CountDownActivity.this, MainActivity.class);
                 startActivity(intent);
                 finish();
             }
         });
+
+        bt_music.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent();
+                intent.setAction(RingtoneManager.ACTION_RINGTONE_PICKER);
+                intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, false);
+                intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "设置闹玲铃声");
+                intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALL);
+                Uri pickedUri = RingtoneManager.getActualDefaultRingtoneUri(CountDownActivity.this, RingtoneManager.TYPE_ALARM);
+                if (pickedUri != null) {
+                    intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, pickedUri);
+                    ringUri = pickedUri;
+                }
+                startActivityForResult(intent, 1);
+            }
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != RESULT_OK) {
+            return;
+        }
+        switch (requestCode) {
+            case 1:
+                //获取选中的铃声的URI
+                Uri pickedURI = data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI);
+                ringUri = pickedURI;
+                break;
+
+            default:
+                break;
+        }
     }
 
     Handler handler = new Handler() {
@@ -118,7 +167,21 @@ public class CountDownActivity extends AppCompatActivity {
                     msg.arg2 = num2;
                     CountDownActivity.this.handler.sendMessage(msg);
 
-                    if (num1 == 0 && num2 == 0) break;
+                    if (num1 == 0 && num2 == 0) {
+                        try {
+                            if (ringUri != null) {
+                                mp = MediaPlayer.create(CountDownActivity.this, ringUri);
+                                if (mp != null) {
+                                    mp.stop();
+                                }
+                                mp.prepare();
+                                mp.start();
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                    }
 
                     if (num1 == 0) {
                         num2--;
